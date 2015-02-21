@@ -1,3 +1,9 @@
+/**
+ * Converts EMF requirement model instance to Requirement File(.docx)
+ * 
+ * @author furkan.tanriverdi@unitbilisim.com
+ */
+
 package eu.modelwriter.architecture.textconnectors.docx;
 
 import java.io.File;
@@ -41,7 +47,7 @@ public class ReqModel2DocxConverter {
 
 		document = new XWPFDocument(); 
 		
-		//Write the Document in file system					C:/Users/2/Desktop/
+		//Write the Document in file system(in this case in project folder)					
 		FileOutputStream out = new FileOutputStream(new File("RequirementModelDocument.docx"));
 
 		try {
@@ -51,15 +57,14 @@ public class ReqModel2DocxConverter {
 			// try to load the file into resource
 			resource.load(null);
 
+			// Write content of resource file
 			//resource.save(System.out, Collections.EMPTY_MAP);
-
 
 			Iterator<EObject> resourceObjects = resource.getAllContents();	
 
 			while (resourceObjects.hasNext()) {
 				Object o = resourceObjects.next();
 
-				
 				// Traversing Product's children
 				if(o instanceof Product){
 					
@@ -86,6 +91,11 @@ public class ReqModel2DocxConverter {
 
 	}
 
+	/**
+	 * Returns the EMF model instance .xmi file
+	 * 
+	 * @return Resource
+	 */
 	@SuppressWarnings("unchecked")
 	private static Resource getResource() {
 		// TODO Auto-generated method stub
@@ -107,23 +117,28 @@ public class ReqModel2DocxConverter {
 		return (Resource)resourceSet.createResource(uri);
 	}
 
-	// non-binary tree pre-order traverse
-	public static void preOrder (RequirementLevel reqLvl, int headingLevel)
+	/**
+	 * Traverse non-binary requirement model tree
+	 * 
+	 * @param requirementLevel
+	 * @param headingLevel
+	 */
+	public static void preOrder (RequirementLevel requirementLevel, int headingLevel)
 	{
 	 
-	  if(reqLvl.getOwnedLevel().isEmpty()){
+	  if(requirementLevel.getOwnedLevel().isEmpty()){
 		  
 		  // Write Requirement Level to file
-		  writeRequirementLevel(reqLvl,headingLevel);
-		  //System.out.println(reqLvl.getName() + " " + headingLevel);
+		  writeRequirementLevel(requirementLevel,headingLevel);
+		  //System.out.println(requirementLevel.getName() + " " + headingLevel);
 
-		  if(!reqLvl.getOwnedRequirement().isEmpty()){
+		  if(!requirementLevel.getOwnedRequirement().isEmpty()){
 			  
-			  for(Requirement r : reqLvl.getOwnedRequirement()){
+			  for(Requirement requirement : requirementLevel.getOwnedRequirement()){
 				  
 				  // Write Requirement to file
-				  writeRequirement(r);
-				  //System.out.println(r.getName());
+				  writeRequirement(requirement);
+				  //System.out.println(requirement.getName());
 			  }
 		  }
 		  
@@ -131,41 +146,45 @@ public class ReqModel2DocxConverter {
 	  }
 	  
 	  // Write Requirement Level to file
-	  writeRequirementLevel(reqLvl,headingLevel);
-	  //System.out.println(reqLvl.getName() + " " + headingLevel);
+	  writeRequirementLevel(requirementLevel,headingLevel);
+	  //System.out.println(requirementLevel.getName() + " " + headingLevel);
 	  
 	  headingLevel++;
 	  
-	  for(RequirementLevel subReqLvl : reqLvl.getOwnedLevel()){
+	  for(RequirementLevel subRequirementLevel : requirementLevel.getOwnedLevel()){
 		  
-		  preOrder(subReqLvl,headingLevel);
+		  preOrder(subRequirementLevel,headingLevel);
 		 
 	  }
 	  
 	}
 	
-	// Write Requirement to file
-	public static void writeRequirement(Requirement r){
+	/**
+	 * Writes Requirement object to file
+	 * 
+	 * @param requirement
+	 */
+	public static void writeRequirement(Requirement requirement){
 		
 		XWPFParagraph paragraph = document.createParagraph();
 		XWPFRun run=paragraph.createRun();
 		
-		run.setText(r.getId());
+		run.setText(requirement.getId());
 		run.setBold(true);
 		run.setFontSize(11);
 		run.setFontFamily("Calibri (Body)");
 		run.addBreak();
 		
 		XWPFRun runName = paragraph.createRun();
-		runName.setText(REQUIREMENT_NAME + " : " + r.getName());
+		runName.setText(REQUIREMENT_NAME + " : " + requirement.getName());
 		runName.addBreak();
 		
 		XWPFRun runDescription = paragraph.createRun();
-		runDescription.setText(REQUIREMENT_DESCRIPTION + " : " + r.getDescription());
+		runDescription.setText(REQUIREMENT_DESCRIPTION + " : " + requirement.getDescription());
 		runDescription.addBreak();
 		
 		XWPFRun runPriority = paragraph.createRun();
-		if(r.getPriorityType() == Priority.MANDATORY){
+		if(requirement.getPriorityType() == Priority.MANDATORY){
 			
 			runDescription.setText(REQUIREMENT_DESCRIPTION + " : Mandatory");
 			
@@ -176,24 +195,29 @@ public class ReqModel2DocxConverter {
 		}
 		runPriority.addBreak();
 		
-		if(r.getDependencyTo() != null){
+		if(requirement.getDependencyTo() != null){
 			
 			XWPFRun runDependencyTo = paragraph.createRun();
-			runDependencyTo.setText(REQUIREMENT_DEPENDENCY_TO + " : " + r.getDependencyTo().getId());
+			runDependencyTo.setText(REQUIREMENT_DEPENDENCY_TO + " : " + requirement.getDependencyTo().getId());
 			runDependencyTo.addBreak();
 		}
 		
-		if(r.getRefine() != null){
+		if(requirement.getRefine() != null){
 			
 			XWPFRun runRefine = paragraph.createRun();
-			runRefine.setText(REQUIREMENT_REFINE + " : " + r.getRefine().getId());
+			runRefine.setText(REQUIREMENT_REFINE + " : " + requirement.getRefine().getId());
 			runRefine.addBreak();
 		}
 		
 	}
 	
-	 // Write Requirement Level to file
-	public static void writeRequirementLevel(RequirementLevel rl, int heading){
+	/**
+	 * Writes RequirementLevel object to file
+	 * 
+	 * @param requirementLevel
+	 * @param heading
+	 */
+	public static void writeRequirementLevel(RequirementLevel requirementLevel, int heading){
 		
 		XWPFParagraph paragraph = document.createParagraph();
 		XWPFRun run=paragraph.createRun();
@@ -203,7 +227,7 @@ public class ReqModel2DocxConverter {
 		// Setting heading style is not working
 		paragraph.setStyle("Heading"+heading);
 		
-		run.setText(rl.getName());
+		run.setText(requirementLevel.getName());
 		run.setBold(true);
 		
 		switch(heading){

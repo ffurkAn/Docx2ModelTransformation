@@ -1,3 +1,9 @@
+/**
+ * Converts requirement file(.docx) to  EMF model instance
+ * 
+ * @author furkan.tanriverdi@unitbilisim.com
+ */
+
 package eu.modelwriter.architecture.textconnectors.docx;
 
 import java.io.FileInputStream;
@@ -30,7 +36,7 @@ import com.google.common.collect.HashMultimap;
 public class Docx2ReqModelConverter {
 
 	private static Resource resource;
-	private static int reqId = 0;
+	private static Product product;
 
 	// Requirement property keywords
 	private final static String REQUIREMENT_NAME = "Name";
@@ -45,16 +51,19 @@ public class Docx2ReqModelConverter {
 	// Stores levels 
 	private static Stack<RequirementLevel> requirementLevelStack;
 
-	// Stores requirement level object and their levels
+	// Maps requirement level object and their levels
 	private static Map<RequirementLevel,Integer> requirementLevelMap;
 
-	// Stores styles and their levels
+	// Maps styles and their levels
 	private static Map<String,Integer> headingMap;
 
+	// Maps source and target requirement's Ids
 	public static Map<String, String> dependenceyToMultiMap;
 
+	// Maps source and target requirement's Ids
 	public static Map<String, String> refineMultiMap;
 
+	// Maps requirement id and corresponding requirement object
 	public static Map<String, Requirement> requirementMultiMap;
 
 	public static void main(String[] args)throws Exception 
@@ -69,7 +78,7 @@ public class Docx2ReqModelConverter {
 		refineMultiMap = new HashMap<String, String>();
 		requirementMultiMap = new HashMap<String, Requirement>();
 
-		// higher level is Heading1
+		// higher level is Heading1 in a word file
 		//headingMap.put("NoSpacing", 0);
 		headingMap.put("Heading1", 1);
 		headingMap.put("Heading2", 2);
@@ -83,101 +92,101 @@ public class Docx2ReqModelConverter {
 
 		XWPFDocument docx = new XWPFDocument(new FileInputStream("C:/Users/2/Desktop/SampleRequirementDocument.docx"));
 
-		XWPFWordExtractor we = new XWPFWordExtractor(docx);
+		//XWPFWordExtractor we = new XWPFWordExtractor(docx);
 
-		XWPFStyles styles = docx.getStyles();
+		//XWPFStyles styles = docx.getStyles();
 
 		List<XWPFParagraph> paragraphList = docx.getParagraphs();
 
 		SimpleRequirementMMFactory factory = SimpleRequirementMMFactory.eINSTANCE;
 
 		//int currentIndex = 0;
-		int controller = 0;
-		Product product = factory.createProduct();
-		boolean reqFlag = false;
-		boolean isLevelChanged = false;
-		Requirement r = null;
-		Requirement pr = null;
+		int firstParagraphCounter = 0;
+		product = factory.createProduct();
 
+		Requirement requirement = null;
+		Requirement previousRequirement = null;
+
+		// Regular expression for requirement id
 		String pattern = "(EM-HLR-F-REQ-[0-9]{3})";
 		Pattern p = Pattern.compile(pattern);
 
 
+		for(XWPFParagraph paragraph : paragraphList){
 
-		for(XWPFParagraph para : paragraphList){
+			//boolean b = paragraph.getRun().isBold();
+			firstParagraphCounter++;
 
-			//boolean b = para.getRun().isBold();
-			controller++;
+			// For debug
+			// String paragraphText = paragraph.getText();
 
-			String paragraphText = para.getText();
-
-			if( para != null && para.getText() != ""){
+			if( paragraph != null && paragraph.getText() != ""){
 
 				// first paragraph element
-				if(controller == 1){
+				if(firstParagraphCounter == 1){
 
 					// Create a new RequirementLevel
-					RequirementLevel rl = factory.createRequirementLevel();
+					RequirementLevel requirementLevel = factory.createRequirementLevel();
 
 					// Set requirements' name as paragraphs' name
-					rl.setName(para.getText());
+					requirementLevel.setName(paragraph.getText());
 
-					// para.getStyle().equals("Heading1")
+					// paragraph.getStyle().equals("Heading1")
 
 					// Only biggest headers(Heading 1) should be added Product
-					if(headingMap.get(para.getStyle()) == 1){
-						product.getOwnedRequirementLevel().add(rl);
+					if(headingMap.get(paragraph.getStyle()) == 1){
+						product.getOwnedRequirementLevel().add(requirementLevel);
 					}
 
-					requirementLevelStack.push(rl);
-					requirementLevelMap.put(rl, headingMap.get(para.getStyle()));					
+					requirementLevelStack.push(requirementLevel);
+					requirementLevelMap.put(requirementLevel, headingMap.get(paragraph.getStyle()));					
 				}				
 
 				else {
 
 					// If the paragraph is on the lowest level
 					// This paragraph is about one of requirements' properties
-					if(para.getStyle() == null){
+					if(paragraph.getStyle() == null){
 
-						Matcher m = p.matcher(para.getText());
+						Matcher matcher = p.matcher(paragraph.getText());
 
 						// If there is no corresponding requirement object
-						if(m.matches()){
+						if(matcher.matches()){
 
-							pr = r;
-							if(pr != null){
+							previousRequirement = requirement;
+							if(previousRequirement != null){
 
-								requirementLevelStack.peek().getOwnedRequirement().add(pr);
-								requirementMultiMap.put(pr.getId().trim(), pr);
+								requirementLevelStack.peek().getOwnedRequirement().add(previousRequirement);
+								requirementMultiMap.put(previousRequirement.getId().trim(), previousRequirement);
 
 							}
 
-							r = factory.createRequirement();
-							//r.setName(requirementLevelStack.peek().getName());
-							r.setId(para.getText());
+							requirement = factory.createRequirement();
+							//requirement.setName(requirementLevelStack.peek().getName());
+							requirement.setId(paragraph.getText());
 
 
 						}															
 
 						// Split the propertie and the value of it
-						String[] values = para.getText().split(":");
+						String[] values = paragraph.getText().split(":");
 
 						// Set requirement's name
 						if(values[0].trim().equals(REQUIREMENT_NAME)){
 
-							r.setName(values[1]);
+							requirement.setName(values[1]);
 						}
 
 						// Set requirement's description
 						if(values[0].trim().equals(REQUIREMENT_DESCRIPTION)){
 
-							r.setDescription(values[1]);
+							requirement.setDescription(values[1]);
 						}
 
 						// Set requirement's dependency
 						if(values[0].equals(REQUIREMENT_DEPENDENCY_TO)){
 
-							dependenceyToMultiMap.put(r.getId(), values[1].trim());
+							dependenceyToMultiMap.put(requirement.getId(), values[1].trim());
 						}
 
 						// Set requirement's priority
@@ -185,18 +194,18 @@ public class Docx2ReqModelConverter {
 
 							if(values[1].equals(REQUIREMENT_PRIORITY_MANDATORY)){
 
-								r.setPriorityType(Priority.MANDATORY);	
+								requirement.setPriorityType(Priority.MANDATORY);	
 
 							}else{
 
-								r.setPriorityType(Priority.OPTÝONAL);
+								requirement.setPriorityType(Priority.OPTÝONAL);
 							}
 						}
 
 						// Set requirement's refine
 						if(values[0].trim().equals(REQUIREMENT_REFINE)){
 
-							refineMultiMap.put(r.getId(), values[1].trim());
+							refineMultiMap.put(requirement.getId(), values[1].trim());
 						}
 
 
@@ -204,58 +213,57 @@ public class Docx2ReqModelConverter {
 
 						// The current paragraph is on different level
 						// so add requirement to peek requirement level object
-						if(r != null){
+						if(requirement != null){
 
 							/*
-							RequirementLevel poppedReqLvl = requirementLevelStack.pop();
-							poppedReqLvl.getOwnedRequirement().add(r);
-							requirementLevelStack.peek().getOwnedLevel().add(poppedReqLvl);
+							RequirementLevel poppedRequirementLevel = requirementLevelStack.pop();
+							poppedRequirementLevel.getOwnedRequirement().add(requirement);
+							requirementLevelStack.peek().getOwnedLevel().add(poppedRequirementLevel);
 							 */
-							requirementLevelStack.peek().getOwnedRequirement().add(r);
-							requirementMultiMap.put(r.getId(), r);
-							r = null;
-							//isLevelChanged = true;
-							//reqFlag = false;
+							requirementLevelStack.peek().getOwnedRequirement().add(requirement);
+							requirementMultiMap.put(requirement.getId(), requirement);
+							requirement = null;
+
 
 						}
 
 						// If the current paragraph's level is lower than the peek's level 
-						if(headingMap.get(para.getStyle()) > requirementLevelMap.get(requirementLevelStack.peek())){
+						if(headingMap.get(paragraph.getStyle()) > requirementLevelMap.get(requirementLevelStack.peek())){
 
-							RequirementLevel newReqLvl = factory.createRequirementLevel();
-							newReqLvl.setName(para.getText());
+							RequirementLevel newRequirementLevel = factory.createRequirementLevel();
+							newRequirementLevel.setName(paragraph.getText());
 
 							/*
-							if(headingMap.get(para.getStyle()) == 1){
-								product.getOwnedRequirementLevel().add(newReqLvl);
+							if(headingMap.get(paragraph.getStyle()) == 1){
+								product.getOwnedRequirementLevel().add(newRequirementLevel);
 							}*/
 
-							requirementLevelStack.push(newReqLvl);
-							requirementLevelMap.put(newReqLvl, headingMap.get(para.getStyle()));
+							requirementLevelStack.push(newRequirementLevel);
+							requirementLevelMap.put(newRequirementLevel, headingMap.get(paragraph.getStyle()));
 						}
 
 						// If the current paragraph's level is equal to the peek's level 
-						else if(controller > 1 && (headingMap.get(para.getStyle()) == requirementLevelMap.get(requirementLevelStack.peek()))){
+						else if(firstParagraphCounter > 1 && (headingMap.get(paragraph.getStyle()) == requirementLevelMap.get(requirementLevelStack.peek()))){
 
-							RequirementLevel poppedReqLvl = requirementLevelStack.pop();
+							RequirementLevel poppedRequirementLevel = requirementLevelStack.pop();
 
 							if(!requirementLevelStack.isEmpty()){
 
-								requirementLevelStack.peek().getOwnedLevel().add(poppedReqLvl);
+								requirementLevelStack.peek().getOwnedLevel().add(poppedRequirementLevel);
 							}else{
 
-								product.getOwnedRequirementLevel().add(poppedReqLvl);
+								product.getOwnedRequirementLevel().add(poppedRequirementLevel);
 							}
 
-							RequirementLevel newReqLvl = factory.createRequirementLevel();
-							newReqLvl.setName(para.getText());
+							RequirementLevel newRequirementLevel = factory.createRequirementLevel();
+							newRequirementLevel.setName(paragraph.getText());
 
-							if(headingMap.get(para.getStyle()) == 1){
-								product.getOwnedRequirementLevel().add(newReqLvl);
+							if(headingMap.get(paragraph.getStyle()) == 1){
+								product.getOwnedRequirementLevel().add(newRequirementLevel);
 							}
 
-							requirementLevelStack.push(newReqLvl);
-							requirementLevelMap.put(newReqLvl, headingMap.get(para.getStyle()));
+							requirementLevelStack.push(newRequirementLevel);
+							requirementLevelMap.put(newRequirementLevel, headingMap.get(paragraph.getStyle()));
 						}
 
 
@@ -264,33 +272,33 @@ public class Docx2ReqModelConverter {
 						// current paragraph's level
 						else{											
 
-							while(headingMap.get(para.getStyle()) <= requirementLevelMap.get(requirementLevelStack.peek())){
+							while(headingMap.get(paragraph.getStyle()) <= requirementLevelMap.get(requirementLevelStack.peek())){
 
-								RequirementLevel poppedReqLvl = requirementLevelStack.pop();
+								RequirementLevel poppedRequirementLevel = requirementLevelStack.pop();
 
 								// Higher level paragraph must be added to product
-								if(requirementLevelMap.get(poppedReqLvl) == 1){
+								if(requirementLevelMap.get(poppedRequirementLevel) == 1){
 
-									product.getOwnedRequirementLevel().add(poppedReqLvl);
+									product.getOwnedRequirementLevel().add(poppedRequirementLevel);
 									break;
 
 								}else{
 
-									requirementLevelStack.peek().getOwnedLevel().add(poppedReqLvl);			
+									requirementLevelStack.peek().getOwnedLevel().add(poppedRequirementLevel);			
 								}
 
 
 							}
 
-							RequirementLevel newReqLvl = factory.createRequirementLevel();
-							newReqLvl.setName(para.getText());
+							RequirementLevel newRequirementLevel = factory.createRequirementLevel();
+							newRequirementLevel.setName(paragraph.getText());
 
-							if(headingMap.get(para.getStyle()) == 1){
-								product.getOwnedRequirementLevel().add(newReqLvl);
+							if(headingMap.get(paragraph.getStyle()) == 1){
+								product.getOwnedRequirementLevel().add(newRequirementLevel);
 							}
 
-							requirementLevelStack.push(newReqLvl);
-							requirementLevelMap.put(newReqLvl, headingMap.get(para.getStyle()));
+							requirementLevelStack.push(newRequirementLevel);
+							requirementLevelMap.put(newRequirementLevel, headingMap.get(paragraph.getStyle()));
 
 						}
 					}
@@ -303,18 +311,49 @@ public class Docx2ReqModelConverter {
 
 		}
 
-		// Assign Refine and Dependency To attributes
-		for(Map.Entry<String, String> e : refineMultiMap.entrySet()){
 
-			String key = e.getKey();
-			String value = e.getValue();
+		// Assign Refine attribute
+		handleRefine();
 
-			Requirement source = requirementMultiMap.get(key);
-			Requirement target = requirementMultiMap.get(value);
+		// Assign Dependency To attribute
+		handleDependencyTo();
 
-			source.setRefine(target);
+		// At last, stack must be emptied
+		emptyStack();
+
+		// Create and save the model instance to xmi file
+		createXMIFile(product);
+
+	}
+
+	/**
+	 * Requirement Levels left at stack must be removed and 
+	 * added corresponding levels
+	 */
+	private static void emptyStack() {
+		// TODO Auto-generated method stub
+
+		while(!requirementLevelStack.isEmpty()){
+
+			RequirementLevel poppedRequirementLevel = requirementLevelStack.pop();	
+
+			if(requirementLevelMap.get(poppedRequirementLevel) == 1){
+
+				product.getOwnedRequirementLevel().add(poppedRequirementLevel);
+			}else{
+
+				requirementLevelStack.peek().getOwnedLevel().add(poppedRequirementLevel);			
+			}
+
 
 		}
+	}
+
+	/**
+	 * Assigns Dependency To requirements to requirement
+	 */
+	private static void handleDependencyTo() {
+		// TODO Auto-generated method stub
 
 		for(Map.Entry<String, String> e : dependenceyToMultiMap.entrySet()){
 
@@ -328,29 +367,25 @@ public class Docx2ReqModelConverter {
 
 		}
 
+	}
 
+	/**
+	 * Assigns refine requirements to requirement
+	 */
+	private static void handleRefine() {
+		// TODO Auto-generated method stub
 
+		for(Map.Entry<String, String> e : refineMultiMap.entrySet()){
 
-		// At last, stack must be emptied
-		while(!requirementLevelStack.isEmpty()){
+			String key = e.getKey();
+			String value = e.getValue();
 
-			RequirementLevel poppedReqLvl = requirementLevelStack.pop();	
+			Requirement source = requirementMultiMap.get(key);
+			Requirement target = requirementMultiMap.get(value);
 
-			if(requirementLevelMap.get(poppedReqLvl) == 1){
-
-				product.getOwnedRequirementLevel().add(poppedReqLvl);
-			}else{
-
-				requirementLevelStack.peek().getOwnedLevel().add(poppedReqLvl);			
-			}
-
+			source.setRefine(target);
 
 		}
-
-		// Create and save the model instance to xmi file
-		createXMIFile(product);
-
-
 	}
 
 	/**
