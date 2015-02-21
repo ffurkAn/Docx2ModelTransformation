@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.0"?>
+
+<!--
+-->
+
+<plugin>
+
+   <extension point="org.eclipse.ui.newWizards">
+      <!-- @generated simplerequirementmetamodel -->
+      <category
+            id="org.eclipse.emf.ecore.Wizard.category.ID"
+            name="%_UI_Wizard_category"/>
+      <wizard
+            id="SimpleRequirementMM.presentation.SimpleRequirementMMModelWizardID"
+            name="%_UI_SimpleRequirementMMModelWizard_label"
+            class="SimpleRequirementMM.presentation.SimpleRequirementMMModelWizard"
+            category="org.eclipse.emf.ecore.Wizard.category.ID"
+            icon="icons/full/obj16/SimpleRequirementMMModelFile.gif">
+         <description>%_UI_SimpleRequirementMMModelWizard_description</description>
+         <selection class="org.eclipse.core.resources.IResource"/>
+      </wizard>
+   </extension>
+
+   <extension point="org.eclipse.ui.editors">
+      <!-- @generated simplerequirementmetamodel -->
+      <editor
+            id="SimpleRequirementMM.presentation.SimpleRequirementMMEditorID"
+            name="%_UI_SimpleRequirementMMEditor_label"
+            icon="icons/full/obj16/SimpleRequirementMMModelFile.gif"
+            extensions="simplerequirementmm"
+            class="SimpleRequirementMM.presentation.SimpleRequirementMMEditor"
+            contributorClass="SimpleRequirementMM.presentation.SimpleRequirementMMActionBarContributor">
+      </editor>
+   </extension>
+
+</plugin>
