@@ -15,10 +15,11 @@ import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
-import org.apache.poi.xwpf.usermodel.XWPFStyles;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
@@ -31,11 +32,8 @@ import SimpleRequirementMM.Requirement;
 import SimpleRequirementMM.RequirementLevel;
 import SimpleRequirementMM.SimpleRequirementMMFactory;
 
-import com.google.common.collect.HashMultimap;
-
 public class Docx2ReqModelConverter {
 
-	private static Resource resource;
 	private static Product product;
 
 	// Requirement property keywords
@@ -79,7 +77,7 @@ public class Docx2ReqModelConverter {
 		requirementMultiMap = new HashMap<String, Requirement>();
 
 		// higher level is Heading1 in a word file
-		//headingMap.put("NoSpacing", 0);
+		//headingMap.put("NoSpacing", 0);	
 		headingMap.put("Heading1", 1);
 		headingMap.put("Heading2", 2);
 		headingMap.put("Heading3", 3);
@@ -90,7 +88,7 @@ public class Docx2ReqModelConverter {
 		headingMap.put("Heading8", 8);
 		headingMap.put("Heading9", 9);
 
-		XWPFDocument docx = new XWPFDocument(new FileInputStream("C:/Users/2/Desktop/SampleRequirementDocument.docx"));
+		XWPFDocument docx = new XWPFDocument(new FileInputStream("Test Documents/SampleRequirementDocument.docx"));
 
 		//XWPFWordExtractor we = new XWPFWordExtractor(docx);
 
@@ -111,16 +109,14 @@ public class Docx2ReqModelConverter {
 		String pattern = "(EM-HLR-F-REQ-[0-9]{3})";
 		Pattern p = Pattern.compile(pattern);
 
-
 		for(XWPFParagraph paragraph : paragraphList){
 
-			//boolean b = paragraph.getRun().isBold();
 			firstParagraphCounter++;
 
 			// For debug
-			// String paragraphText = paragraph.getText();
+		    // String paragraphText = paragraph.getText().trim();
 
-			if( paragraph != null && paragraph.getText() != ""){
+			if( paragraph != null && paragraph.getText().trim() != ""){
 
 				// first paragraph element
 				if(firstParagraphCounter == 1){
@@ -128,10 +124,8 @@ public class Docx2ReqModelConverter {
 					// Create a new RequirementLevel
 					RequirementLevel requirementLevel = factory.createRequirementLevel();
 
-					// Set requirements' name as paragraphs' name
+					// Set requirement name as paragraph name
 					requirementLevel.setName(paragraph.getText());
-
-					// paragraph.getStyle().equals("Heading1")
 
 					// Only biggest headers(Heading 1) should be added Product
 					if(headingMap.get(paragraph.getStyle()) == 1){
@@ -146,6 +140,7 @@ public class Docx2ReqModelConverter {
 
 					// If the paragraph is on the lowest level
 					// This paragraph is about one of requirements' properties
+					String s = paragraph.getStyle();
 					if(paragraph.getStyle() == null){
 
 						Matcher matcher = p.matcher(paragraph.getText());
@@ -163,12 +158,12 @@ public class Docx2ReqModelConverter {
 
 							requirement = factory.createRequirement();
 							//requirement.setName(requirementLevelStack.peek().getName());
-							requirement.setId(paragraph.getText());
+							requirement.setId(paragraph.getText().trim());
 
 
 						}															
 
-						// Split the propertie and the value of it
+						// Split the propertie name and the value of it
 						String[] values = paragraph.getText().split(":");
 
 						// Set requirement's name
@@ -185,7 +180,7 @@ public class Docx2ReqModelConverter {
 
 						// Set requirement's dependency
 						if(values[0].equals(REQUIREMENT_DEPENDENCY_TO)){
-
+							
 							dependenceyToMultiMap.put(requirement.getId(), values[1].trim());
 						}
 
@@ -311,6 +306,12 @@ public class Docx2ReqModelConverter {
 
 		}
 
+		// If the last requirement of document could not added to the corresponding requirement level
+		if(requirement != null){
+			
+			requirementLevelStack.peek().getOwnedRequirement().add(requirement);
+			requirementMultiMap.put(requirement.getId(), requirement);
+		}
 
 		// Assign Refine attribute
 		handleRefine();
@@ -323,6 +324,10 @@ public class Docx2ReqModelConverter {
 
 		// Create and save the model instance to xmi file
 		createXMIFile(product);
+		
+		final JFrame frame = new JFrame();
+		JOptionPane.showMessageDialog(frame,
+			    "EMF Model created successfully!");
 
 	}
 
@@ -355,16 +360,21 @@ public class Docx2ReqModelConverter {
 	private static void handleDependencyTo() {
 		// TODO Auto-generated method stub
 
-		for(Map.Entry<String, String> e : dependenceyToMultiMap.entrySet()){
+		try {
+			for(Map.Entry<String, String> e : dependenceyToMultiMap.entrySet()){
 
-			String key = e.getKey();
-			String value = e.getValue();
+				String key = e.getKey();
+				String value = e.getValue();
 
-			Requirement source = requirementMultiMap.get(key);
-			Requirement target = requirementMultiMap.get(value);
+				Requirement source = requirementMultiMap.get(key);
+				Requirement target = requirementMultiMap.get(value);
 
-			source.setDependencyTo(target);
+				source.setDependencyTo(target);
 
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			System.out.println("-Dependency To- requirement not defined!");
 		}
 
 	}
@@ -375,16 +385,21 @@ public class Docx2ReqModelConverter {
 	private static void handleRefine() {
 		// TODO Auto-generated method stub
 
-		for(Map.Entry<String, String> e : refineMultiMap.entrySet()){
+		try {
+			for(Map.Entry<String, String> e : refineMultiMap.entrySet()){
 
-			String key = e.getKey();
-			String value = e.getValue();
+				String key = e.getKey();
+				String value = e.getValue();
 
-			Requirement source = requirementMultiMap.get(key);
-			Requirement target = requirementMultiMap.get(value);
+				Requirement source = requirementMultiMap.get(key);
+				Requirement target = requirementMultiMap.get(value);
 
-			source.setRefine(target);
+				source.setRefine(target);
 
+			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			System.out.println("-Refine requirement- not defined!");
 		}
 	}
 
